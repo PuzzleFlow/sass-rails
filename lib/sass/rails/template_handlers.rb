@@ -48,7 +48,7 @@ module Sass::Rails
 
         raise Sprockets::FileNotFound, "couldn't find file '#{path}'"
       else
-        context.environment.resolve(path, :base_path => self.pathname.dirname, &block)
+        context.environment.resolve(path, :base_path => context.pathname.dirname, &block)
       end
     end
 
