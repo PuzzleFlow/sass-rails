@@ -14,9 +14,42 @@ module Sass::Rails
     def resolve(path, content_type = :self)
       options = {}
       options[:content_type] = content_type unless content_type.nil?
-      context.resolve(path, options)
+      simulate_sprockets_resolve(path, options)
     rescue Sprockets::FileNotFound, Sprockets::ContentTypeMismatch
       nil
+    end
+
+    # Sprockets resolve does not really support absolute paths in 2.x
+    # (it requires exact file name, but we want to be smarter)
+    # Therefore we simulate that method.
+    # (tested with 2.2.2)
+    def simulate_sprockets_resolve(path, options = {}, &block)
+      pathname   = Pathname.new(path)
+      attributes = context.environment.attributes_for(pathname)
+
+      if pathname.absolute? && context.environment.stat(pathname)
+        pathname
+
+      elsif content_type = options[:content_type]
+        content_type = context.content_type if content_type == :self
+
+        if attributes.format_extension
+          if content_type != attributes.content_type
+            raise ContentTypeMismatch, "#{path} is " +
+              "'#{attributes.content_type}', not '#{content_type}'"
+          end
+        end
+
+        simulate_sprockets_resolve(path) do |candidate|
+          if context.content_type == context.environment.content_type_of(candidate)
+            return candidate
+          end
+        end
+
+        raise Sprockets::FileNotFound, "couldn't find file '#{path}'"
+      else
+        context.environment.resolve(path, :base_path => self.pathname.dirname, &block)
+      end
     end
 
     def source_path(path, ext)

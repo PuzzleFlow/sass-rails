@@ -34,7 +34,11 @@ module Sass::Rails
       name = Pathname.new(name)
       if base_pathname && base_pathname.to_s.size > 0
         root = Pathname.new(context.root_path)
-        name = base_pathname.relative_path_from(root).join(name)
+        begin
+          name = base_pathname.relative_path_from(root).join(name)
+        rescue ArgumentError #different prefixes
+          name = base_pathname.join(name)
+        end
       end
       partial_name = name.dirname.join("_#{name.basename}")
       @resolver.resolve(name) || @resolver.resolve(partial_name)
